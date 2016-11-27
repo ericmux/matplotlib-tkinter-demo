@@ -29,13 +29,16 @@ class SensorStream:
         self.id = id
         self.times = []
         self.measures = []
+        self.avg_measures = []
 
     def add_measure(self, t, v):
         if len(self.times) == SensorStream.MAX_MEASURES:
             self.times.pop(0)
             self.measures.pop(0)
+            self.avg_measures.pop(0)
         self.times.append(t)
         self.measures.append(v)
+        self.avg_measures.append(np.average(self.measures))
 
 
 class DataCollector:
@@ -97,7 +100,8 @@ class SensorMonitor:
         self.axes = axes
         self.stream = stream
         self.title = title
-        self.lines, = self.axes.plot(self.stream.times, self.stream.measures)
+        self.lines, = self.axes.plot(self.stream.times, self.stream.measures, 'blue')
+        self.avg_lines, = self.axes.plot(self.stream.times, self.stream.avg_measures, 'red')
         self.refresh_rate = REFRESH_RATE
 
         self.axes.set_title(self.title)
@@ -115,6 +119,7 @@ class SensorMonitor:
     def update_data(self, data):
         self.stream.add_measure(data[0], data[1])
         self.lines.set_data(self.stream.times, self.stream.measures)
+        self.avg_lines.set_data(self.stream.times, self.stream.avg_measures)
 
         if not len(self.stream.times) > 0:
             return
@@ -124,9 +129,12 @@ class SensorMonitor:
 
         self.axes.set_xlim(new_range[0], new_range[-1])
 
-        ticks = [x for x in new_range if x % (2 * self.refresh_rate) == 0]
+        ticks = [x for x in new_range if x % self.refresh_rate == 0]
         self.axes.set_xticks(ticks)
         self.axes.set_xticklabels([str(x / 1000) for x in ticks])
+
+    def get_animated_lines(self):
+        return [self.lines, self.avg_lines]
 
 
 class MuxaGet(Tk.Tk):
@@ -237,7 +245,7 @@ pyplot.ion()
 
 # Init function.
 def init():
-    return [muxaget.air_t_monitor.lines, muxaget.air_h_monitor.lines, muxaget.soil_h_monitor.lines]
+    return muxaget.air_t_monitor.get_animated_lines() +  muxaget.air_h_monitor.get_animated_lines() + muxaget.soil_h_monitor.get_animated_lines()
 
 
 # Generate data as if it were coming from the board.
@@ -252,7 +260,7 @@ def poll_data(i):
     if result:
         muxaget.add_measurements(result)
 
-    return [muxaget.air_t_monitor.lines, muxaget.air_h_monitor.lines, muxaget.soil_h_monitor.lines]
+    return muxaget.air_t_monitor.get_animated_lines() +  muxaget.air_h_monitor.get_animated_lines() + muxaget.soil_h_monitor.get_animated_lines()
 
 # Animate plots.
 ani = animation.FuncAnimation(muxaget.figure, poll_data, init_func=init, interval=REFRESH_RATE, blit=True)
