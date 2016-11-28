@@ -110,6 +110,15 @@ class SensorMonitor:
         self.axes.set_ylabel(ylabel)
         self.axes.set_xlabel('Tempo (s)')
 
+        self.axes.spines['bottom'].set_color('white')
+        self.axes.spines['top'].set_color('white')
+        self.axes.spines['left'].set_color('white')
+        self.axes.spines['right'].set_color('white')
+        self.axes.set_axis_bgcolor('black')
+
+        self.axes.tick_params(axis='x', colors='white', width=2)
+        self.axes.tick_params(axis='y', colors='white', width=2)
+
         if not len(self.stream.times) > 0:
             return
 
@@ -124,17 +133,21 @@ class SensorMonitor:
         if not len(self.stream.times) > 0:
             return
 
-        new_range = range(self.stream.times[0], self.stream.times[0] + SensorStream.MAX_MEASURES * self.refresh_rate,
-                          self.refresh_rate)
-
-        self.axes.set_xlim(new_range[0], new_range[-1])
-
-        ticks = [x for x in new_range if x % self.refresh_rate == 0]
-        self.axes.set_xticks(ticks)
-        self.axes.set_xticklabels([str(x / 1000) for x in ticks])
+        self.adjust_limits()
 
     def get_animated_lines(self):
         return [self.lines, self.avg_lines]
+
+    def adjust_limits(self):
+        if not len(self.stream.times) > 0:
+            return
+
+        new_range = range(self.stream.times[0], self.stream.times[0] + SensorStream.MAX_MEASURES * self.refresh_rate,
+                          self.refresh_rate)
+        self.axes.set_xlim(new_range[0], new_range[-1])
+        ticks = [x for x in new_range if x % self.refresh_rate == 0]
+        self.axes.set_xticks(ticks)
+        self.axes.set_xticklabels([str(x / 1000) for x in ticks])
 
 
 class MuxaGet(Tk.Tk):
@@ -185,6 +198,7 @@ class MuxaGet(Tk.Tk):
             def update_rate(rate):
                 monitor.refresh_rate = int(rate) * 1000
                 data_collector.sample_rates[monitor.stream.id] = int(rate)
+                monitor.adjust_limits()
 
             return update_rate
 
@@ -260,7 +274,7 @@ def poll_data(i):
     if result:
         muxaget.add_measurements(result)
 
-    return muxaget.air_t_monitor.get_animated_lines() +  muxaget.air_h_monitor.get_animated_lines() + muxaget.soil_h_monitor.get_animated_lines()
+    return muxaget.air_t_monitor.get_animated_lines() + muxaget.air_h_monitor.get_animated_lines() + muxaget.soil_h_monitor.get_animated_lines()
 
 # Animate plots.
 ani = animation.FuncAnimation(muxaget.figure, poll_data, init_func=init, interval=REFRESH_RATE, blit=True)
